@@ -7,11 +7,13 @@ description: >
 runs:
   using: composite
   steps:
+    # The swift:6.2 image has neither curl nor jq.
     - name: Install ruff and jq
       shell: bash
       run: |
-        if ! command -v jq >/dev/null; then
-          apt-get update && apt-get install -y --no-install-recommends jq
+        missing=$(for tool in curl jq; do command -v "$tool" >/dev/null || echo "$tool"; done)
+        if [ -n "$missing" ]; then
+          apt-get update && apt-get install -y --no-install-recommends ca-certificates $missing
         fi
         curl -LsSf https://astral.sh/ruff/0.11.13/install.sh | env RUFF_INSTALL_DIR="$HOME/.local/bin" RUFF_NO_MODIFY_PATH=1 sh
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
