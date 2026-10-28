@@ -1,0 +1,9 @@
+[project]
+name = "wordstats"
+version = "0.1.0"
+description = "Counts words in text files."
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+src = ["src"]

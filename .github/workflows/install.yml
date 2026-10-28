@@ -1,0 +1,59 @@
+name: Clean installs
+
+# The steward CLI installed as swift-steward's README says, on fresh
+# runners: from the Homebrew tap, from a release's binary, and built from
+# source on Linux.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/install.yml
+
+permissions:
+  contents: read
+
+jobs:
+  homebrew:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Install from the tap
+        run: |
+          brew --version
+          brew tap marosoaie/tap
+          brew trust marosoaie/tap
+          brew install marosoaie/tap/steward
+      - run: steward --version
+
+  release-binary:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - name: Download the latest release's binary and check its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir release && cd release
+          gh release download --repo marosoaie/swift-steward
+          ls -l
+          shasum -a 256 -c ./*.sha256
+      - name: Run it
+        run: |
+          cd release
+          unzip -q ./*.zip
+          binary=$(find . -type f -name steward -perm -u+x | head -1)
+          "$binary" --version
+
+  source-linux:
+    runs-on: ubuntu-24.04
+    container: swift:6.2
+    timeout-minutes: 30
+    steps:
+      - name: Build from source
+        run: |
+          swift --version
+          git clone --depth 1 https://github.com/marosoaie/swift-steward.git
+          cd swift-steward
+          git log -1 --format='%H %s'
+          swift build -c release
+          .build/release/steward --version

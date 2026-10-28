@@ -1,0 +1,67 @@
+name: Steward
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+# Read-only, as a new repository's default token is; the jobs that post ask
+# for more.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# One job per pull request, picked by the head branch's first path
+# component, so each pull request tries one runner: several jobs posting to
+# one pull request would overwrite each other's summary.
+#
+#   ubuntu-22.04/…   ubuntu-22.04        arm/…        ubuntu-24.04-arm
+#   macos/…          macos-26            container/…  swift:6.2 on ubuntu-24.04
+#   readonly/…       ubuntu-24.04 with the default read-only token
+#   anything else    ubuntu-24.04
+jobs:
+  host:
+    if: ${{ !startsWith(github.head_ref, 'container/') && !startsWith(github.head_ref, 'readonly/') }}
+    runs-on: >-
+      ${{ startsWith(github.head_ref, 'ubuntu-22.04/') && 'ubuntu-22.04'
+      || startsWith(github.head_ref, 'arm/') && 'ubuntu-24.04-arm'
+      || startsWith(github.head_ref, 'macos/') && 'macos-26'
+      || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/ruff-sonar
+      # Pinned to a commit until steward-action tags v1.
+      - uses: marosoaie/steward-action@325c70a2ac8134175f820e040b7809b63dfdb4dd
+        if: ${{ !cancelled() }}
+
+  container:
+    if: ${{ startsWith(github.head_ref, 'container/') }}
+    runs-on: ubuntu-24.04
+    container: swift:6.2
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/ruff-sonar
+      - uses: marosoaie/steward-action@325c70a2ac8134175f820e040b7809b63dfdb4dd
+        if: ${{ !cancelled() }}
+
+  # No permissions of its own: the workflow's read-only token can't post, so
+  # Steward warns, and the findings are in the job summary and annotations.
+  readonly:
+    if: ${{ startsWith(github.head_ref, 'readonly/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/ruff-sonar
+      - uses: marosoaie/steward-action@325c70a2ac8134175f820e040b7809b63dfdb4dd
+        if: ${{ !cancelled() }}

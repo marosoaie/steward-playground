@@ -1,0 +1,36 @@
+name: Ruff, as a SonarQube report
+description: >
+  Runs ruff over the repository and converts its JSON to the issues of
+  SonarQube's GET /api/issues/search, which Steward's `.sonar` source reads,
+  at ruff-sonar.json in the repository's root.
+
+runs:
+  using: composite
+  steps:
+    - name: Install ruff and jq
+      shell: bash
+      run: |
+        if ! command -v jq >/dev/null; then
+          apt-get update && apt-get install -y --no-install-recommends jq
+        fi
+        curl -LsSf https://astral.sh/ruff/0.11.13/install.sh | env RUFF_INSTALL_DIR="$HOME/.local/bin" RUFF_NO_MODIFY_PATH=1 sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    # ruff's paths are absolute; Sonar's are the component's key, a colon,
+    # and the path from the project's base directory, here the root.
+    # Syntax errors and undefined names are critical (errors); the rest is
+    # major (warnings).
+    - name: Run ruff
+      shell: bash
+      run: |
+        "$HOME/.local/bin/ruff" --version
+        "$HOME/.local/bin/ruff" check --output-format json --exit-zero . > ruff.json
+        jq --arg root "$PWD/" '{issues: map({
+          component: ("playground:" + (.filename | ltrimstr($root))),
+          line: .location.row,
+          textRange: {startLine: .location.row, startOffset: (.location.column - 1)},
+          message: .message,
+          rule: ("ruff:" + (.code // "syntax")),
+          severity: (if (.code // "E999") | test("^(E9|F82)") then "CRITICAL" else "MAJOR" end)
+        })}' ruff.json > ruff-sonar.json
+        jq -r '.issues[] | "\(.component):\(.line) \(.severity) \(.rule) \(.message)"' ruff-sonar.json
