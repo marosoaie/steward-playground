@@ -17,3 +17,11 @@ on a non-Swift project, for swift-steward's step 5.0 validation.
 - `.github/workflows/install.yml`: installs the `steward` CLI on fresh
   runners from the Homebrew tap, from a release's binary, and from source on
   Linux.
+
+## Usage
+
+<<<<<<< HEAD
+    python -m wordstats.cli notes.txt
+=======
+    PYTHONPATH=src python -m wordstats.cli notes.txt
+>>>>>>> usage
