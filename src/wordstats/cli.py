@@ -15,7 +15,7 @@ def main(paths):
         total += words
     print(f"{total:8} total")
     if paths:
-        print(f"{total / len(path_list):8.1f} average")
+        print(f"{total / len(paths):8.1f} average")
 
 
 if __name__ == "__main__":
