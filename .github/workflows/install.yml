@@ -34,7 +34,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir release && cd release
-          gh release download --repo marosoaie/swift-steward
+          gh release download --repo marosoaie/swift-steward --pattern 'steward-*'
           ls -l
           shasum -a 256 -c ./*.sha256
       - name: Run it
